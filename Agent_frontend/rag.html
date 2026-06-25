@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG System Agent - Multi-Agent RA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0a1a3a;
+        }
+
+        .glass-panel {
+            background: rgba(10, 26, 58, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(212, 160, 23, 0.15);
+        }
+
+        .glass-input {
+            background: rgba(10, 26, 58, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 160, 23, 0.25);
+        }
+
+        .glass-input:focus {
+            border-color: rgba(212, 160, 23, 0.6);
+            box-shadow: 0 0 15px rgba(212, 160, 23, 0.2);
+            outline: none;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(212, 160, 23, 0.1) 50%, rgba(255, 255, 255, 0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+    </style>
+
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+
+<body class="h-full text-white overflow-hidden select-none">
+
+    <!-- Three.js Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="absolute inset-0 z-10 flex flex-col justify-between p-6 md:p-8 pointer-events-none overflow-y-auto">
+
+        <!-- Header -->
+        <header class="w-full flex justify-center pt-4 pointer-events-auto">
+            <a href="home.html" class="hover:opacity-80 transition-opacity duration-200">
+                <h1
+                    class="text-xs md:text-sm tracking-[0.4em] font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 dropping-shadow">
+                    RETRIEVAL-AUGMENTED GENERATION (RAG)
+                </h1>
+            </a>
+        </header>
+
+        <!-- Center Workspace -->
+        <main
+            class="flex-1 flex flex-col items-center justify-center max-w-4xl w-full mx-auto my-auto pointer-events-auto transition-all duration-700 ease-in-out"
+            id="main-layout">
+
+            <!-- Ingestion and Input Hub -->
+            <div class="w-full max-w-2xl flex flex-col space-y-4 transform transition-all duration-500 ease-out"
+                id="input-container">
+
+                <!-- Premium Glassmorphic Document Dropzone -->
+                <div id="dropzone"
+                    class="w-full rounded-xl glass-input p-5 border-dashed border-amber-500/20 hover:border-amber-500/50 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 shadow-xl group">
+                    <input type="file" id="file-selector" class="hidden" accept=".pdf,.txt,.md,.json" />
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-6 h-6 text-amber-400/70 group-hover:text-amber-400 mb-2 transition-colors duration-200">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                    </svg>
+                    <span class="text-xs text-slate-300 font-medium">Drag & drop knowledge files or <span
+                            class="text-amber-400 underline decoration-amber-500/40 underline-offset-2">browse</span></span>
+                    <span class="text-[10px] text-slate-500 mt-1">Supports PDF, TXT, MD up to 32MB</span>
+                </div>
+
+                <!-- Document Context Active Chip Component (Hidden initially) -->
+                <div id="document-chip"
+                    class="hidden items-center justify-between w-full px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs shadow-md">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <span class="text-slate-400">Context Source:</span>
+                        <span class="font-mono text-amber-300 font-medium" id="attached-file-name">document.pdf</span>
+                    </div>
+                    <button id="clear-doc-btn"
+                        class="text-slate-400 hover:text-amber-400 transition-colors p-1 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                            stroke="currentColor" class="w-3.5 h-3.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Query Bar -->
+                <div class="relative flex items-center">
+                    <input type="text" id="agent-input" placeholder="Ask anything concerning your uploaded files..."
+                        class="w-full px-6 py-4 rounded-xl text-white placeholder-slate-400/70 glass-input transition-all duration-300 pr-16 text-base shadow-2xl" />
+                    <button id="send-btn"
+                        class="absolute right-3 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold transition-all duration-200 transform active:scale-95 shadow-md flex items-center justify-center cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
+                            stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Documented Output Container -->
+            <div id="output-container"
+                class="w-full mt-8 rounded-2xl glass-panel border-t-2 border-t-amber-500/40 shadow-2xl overflow-hidden transition-all duration-700 max-h-0 opacity-0 transform translate-y-8 flex flex-col">
+                <div class="px-6 py-3 border-b border-amber-500/10 flex items-center justify-between bg-slate-950/20">
+                    <span class="text-xs tracking-widest text-amber-400 font-semibold uppercase">Retrieved Document
+                        Insight</span>
+                    <div class="flex space-x-1.5">
+                        <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                    </div>
+                </div>
+
+                <div id="output-content"
+                    class="p-6 md:p-8 overflow-y-auto max-h-[50vh] text-slate-200 leading-relaxed text-sm md:text-base">
+                    <!-- Loading Shimmer / Document Target -->
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="w-full text-center text-[10px] tracking-widest text-slate-500 pointer-events-auto">
+            MULTI-AGENT ACCELERATOR ENVIRONMENT &bull; VECTOR INGESTION LAYER
+        </footer>
+    </div>
+
+    <!-- WebGL Engine Scripts -->
+    <script type="module">
+        import * as THREE from 'three';
+
+        let scene, camera, renderer, gradientMesh;
+        let dragonGroup, starMesh, starLight, particleSystem;
+        let isTyping = false;
+        let dragonTargetOpacity = 0.0;
+        let dragonCurrentOpacity = 0.0;
+        let orbitSpeedMultiplier = 1.0;
+        let mouseX = 0, mouseY = 0;
+
+        const dragonMaterials = [];
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            const vertexShader = `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = vec4(position, 1.0);
+                }
+            `;
+            const fragmentShader = `
+                varying vec2 vUv;
+                void main() {
+                    vec3 blue = vec3(0.039, 0.102, 0.227); 
+                    vec3 gold = vec3(0.831, 0.627, 0.090); 
+                    float dist = distance(vUv, vec2(0.5, 0.4));
+                    float glow = 1.0 - smoothstep(0.0, 0.85, dist);
+                    vec3 finalColor = mix(blue, gold, glow * 0.38);
+                    gl_FragColor = vec4(finalColor, 1.0);
+                }
+            `;
+            const gradientGeo = new THREE.PlaneGeometry(2, 2);
+            const gradientMat = new THREE.ShaderMaterial({
+                vertexShader,
+                fragmentShader,
+                depthWrite: false
+            });
+            gradientMesh = new THREE.Mesh(gradientGeo, gradientMat);
+            scene.add(gradientMesh);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffe0a3, 1.5);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            const blueFillLight = new THREE.DirectionalLight(0x1a5aff, 1.2);
+            blueFillLight.position.set(-5, -3, 2);
+            scene.add(blueFillLight);
+
+            dragonGroup = new THREE.Group();
+
+            const dragonBaseMat = new THREE.MeshStandardMaterial({
+                color: 0x0c234a,
+                metalness: 0.85,
+                roughness: 0.18,
+                flatShading: true,
+                transparent: true,
+                opacity: 0.0
+            });
+            dragonMaterials.push(dragonBaseMat);
+
+            const edgeLineMat = new THREE.LineBasicMaterial({ color: 0xd4a017, transparent: true, opacity: 0.0 });
+            dragonMaterials.push(edgeLineMat);
+
+            function addBlock(geo, pos, rot = [0, 0, 0], scale = [1, 1, 1]) {
+                const mesh = new THREE.Mesh(geo, dragonBaseMat);
+                mesh.position.set(...pos);
+                mesh.rotation.set(...rot);
+                mesh.scale.set(...scale);
+
+                const edges = new THREE.EdgesGeometry(geo);
+                const line = new THREE.LineSegments(edges, edgeLineMat);
+                mesh.add(line);
+
+                dragonGroup.add(mesh);
+                return mesh;
+            }
+
+            const headGeo = new THREE.ConeGeometry(0.4, 1.1, 4);
+            const head = addBlock(headGeo, [0, 0.6, 0], [Math.PI / 1.8, 0, 0]);
+
+            const hornGeo = new THREE.ConeGeometry(0.08, 0.5, 3);
+            addBlock(hornGeo, [0.18, 1.0, -0.3], [-Math.PI / 4, 0, Math.PI / 12]);
+            addBlock(hornGeo, [-0.18, 1.0, -0.3], [-Math.PI / 4, 0, -Math.PI / 12]);
+
+            const jawGeo = new THREE.BoxGeometry(0.32, 0.15, 0.6);
+            addBlock(jawGeo, [0, 0.35, 0.1]);
+
+            const neckGeo = new THREE.BoxGeometry(0.28, 0.35, 0.28);
+            addBlock(neckGeo, [0, 0.1, -0.3], [Math.PI / 6, 0, 0]);
+            addBlock(neckGeo, [0, -0.2, -0.45], [Math.PI / 12, 0, 0]);
+
+            const bodyGeo = new THREE.IcosahedronGeometry(0.75, 0);
+            const body = addBlock(bodyGeo, [0, -0.8, -0.8], [0, 0, 0], [0.8, 1.3, 0.8]);
+
+            const wingGeo = new THREE.ConeGeometry(0.8, 1.8, 3);
+            const wingL = addBlock(wingGeo, [1.1, -0.4, -1.0], [Math.PI / 3, -Math.PI / 4, -Math.PI / 3], [0.1, 1, 1]);
+            const wingR = addBlock(wingGeo, [-1.1, -0.4, -1.0], [Math.PI / 3, Math.PI / 4, Math.PI / 3], [0.1, 1, 1]);
+
+            dragonGroup.position.set(0, 0.3, 0);
+            scene.add(dragonGroup);
+
+            const starGeo = new THREE.OctahedronGeometry(0.12, 0);
+            const starMat = new THREE.MeshBasicMaterial({ color: 0xfff0b3 });
+            starMesh = new THREE.Mesh(starGeo, starMat);
+
+            starLight = new THREE.PointLight(0xd4a017, 3, 8, 0.5);
+            starMesh.add(starLight);
+            scene.add(starMesh);
+
+            const particleCount = 180;
+            const particleGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            const cBlue = new THREE.Color(0x1a5aff);
+            const cGold = new THREE.Color(0xd4a017);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 12;
+                positions[i + 1] = (Math.random() - 0.5) * 8;
+                positions[i + 2] = (Math.random() - 0.5) * 5;
+
+                const mixedColor = Math.random() > 0.5 ? cBlue : cGold;
+                colors[i] = mixedColor.r;
+                colors[i + 1] = mixedColor.g;
+                colors[i + 2] = mixedColor.b;
+            }
+
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.06,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            particleSystem = new THREE.Points(particleGeo, particleMat);
+            scene.add(particleSystem);
+
+            // Ingestion Component Events Hookup
+            const dropzone = document.getElementById('dropzone');
+            const fileSelector = document.getElementById('file-selector');
+            const chip = document.getElementById('document-chip');
+            const nameLabel = document.getElementById('attached-file-name');
+            const clearBtn = document.getElementById('clear-doc-btn');
+            const inputField = document.getElementById('agent-input');
+
+            dropzone.addEventListener('click', () => fileSelector.click());
+            fileSelector.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) attachFile(e.target.files[0].name);
+            });
+
+            dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = "rgba(212, 160, 23, 0.7)"; });
+            dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = "rgba(212, 160, 23, 0.2)"; });
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files.length > 0) attachFile(e.dataTransfer.files[0].name);
+            });
+
+            function attachFile(name) {
+                dropzone.classList.add('hidden');
+                chip.classList.remove('hidden');
+                chip.classList.add('flex');
+                nameLabel.innerText = name;
+                dragonTargetOpacity = 1.0; // Instantly wake up asset model on successful load
+            }
+
+            clearBtn.addEventListener('click', () => {
+                chip.classList.add('hidden');
+                chip.classList.remove('flex');
+                dropzone.classList.remove('hidden');
+                fileSelector.value = "";
+                if (inputField.value.trim().length === 0) dragonTargetOpacity = 0.0;
+            });
+
+            inputField.addEventListener('input', (e) => {
+                if (e.target.value.trim().length > 0 || !chip.classList.contains('hidden')) {
+                    dragonTargetOpacity = 1.0;
+                } else {
+                    dragonTargetOpacity = 0.0;
+                }
+            });
+
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.addEventListener('click', triggerExecutionState);
+            inputField.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') triggerExecutionState();
+            });
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onMouseMove(e) {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function triggerExecutionState() {
+            const inputField = document.getElementById('agent-input');
+            if (inputField.value.trim() === '') return;
+
+            orbitSpeedMultiplier = 5.5;
+            dragonGroup.children[0].rotation.z += 0.4;
+            dragonGroup.children[0].rotation.x -= 0.2;
+
+            setTimeout(() => { orbitSpeedMultiplier = 1.0; }, 2000);
+
+            const outContainer = document.getElementById('output-container');
+            const outContent = document.getElementById('output-content');
+
+            document.getElementById('main-layout').classList.remove('justify-center');
+            document.getElementById('main-layout').classList.add('justify-start', 'pt-8');
+
+            outContent.innerHTML = `
+                <div class="space-y-4">
+                    <div class="h-6 w-1/3 rounded shimmer"></div>
+                    <div class="space-y-2">
+                        <div class="h-4 w-full rounded shimmer"></div>
+                        <div class="h-4 w-4/5 rounded shimmer"></div>
+                    </div>
+                </div>
+            `;
+
+            outContainer.style.maxHeight = "600px";
+            outContainer.style.opacity = "1";
+            outContainer.style.transform = "translateY(0)";
+
+            setTimeout(() => {
+                outContent.innerHTML = `
+                    <div class="prose prose-invert max-w-none space-y-6 animate-fade-in">
+                        <h2 class="text-xl md:text-2xl font-bold text-amber-400 border-b border-amber-500/20 pb-2">
+                            Contextual Retrieval Mapping Reference Analysis
+                        </h2>
+                        <p class="text-slate-300 leading-relaxed">
+                            Vector-embeddings matched localized target queries with an inner index confidence metrics threshold calculation of 0.948. Below is the isolated semantic excerpt compiled from active context memory files.
+                        </p>
+                        
+                        <h3 class="text-base md:text-lg font-semibold text-amber-300 mt-4">Isolated Text Matches</h3>
+                        <ul class="list-disc pl-5 space-y-2 text-slate-300">
+                            <li><strong>Chunk Mapping Node:</strong> Section 4.2 extracted semantic references pointing straight towards modular data parameters.</li>
+                            <li><strong>Cross Comparison:</strong> Correlated values validated structural calculations against verified records.</li>
+                        </ul>
+
+                        <h3 class="text-base md:text-lg font-semibold text-amber-300 mt-4">Vector Search Context Weights</h3>
+                        <div class="overflow-x-auto my-4">
+                            <table class="w-full text-left text-xs md:text-sm border-collapse">
+                                <thead>
+                                    <tr class="border-b border-amber-500/20 text-amber-400 bg-slate-900/40">
+                                        <th class="py-2 px-3">Document Section</th>
+                                        <th class="py-2 px-3">Cosine Proximity</th>
+                                        <th class="py-2 px-3">Status Matrix</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/40 text-slate-300">
+                                    <tr>
+                                        <td class="py-2 px-3 font-mono text-amber-100">Paragraph_Chunk_102</td>
+                                        <td class="py-2 px-3">0.9642</td>
+                                        <td class="py-2 px-3 text-emerald-400">Injected</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2 px-3 font-mono text-amber-100">Appendix_B_Table</td>
+                                        <td class="py-2 px-3">0.8921</td>
+                                        <td class="py-2 px-3 text-emerald-400">Injected</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3 class="text-base md:text-lg font-semibold text-amber-300 mt-4">Calculated Context Prompt Generation</h3>
+                        <pre class="bg-slate-950/80 p-4 rounded-xl border border-amber-500/10 text-xs md:text-sm overflow-x-auto font-mono text-amber-200/90"><span class="text-cyan-400">import</span> { VectorStore } <span class="text-cyan-400">from</span> <span class="text-emerald-400">'rag-core-engine'</span>;
+
+<span class="text-cyan-400">const</span> context = <span class="text-cyan-400">await</span> VectorStore.similaritySearch(query, <span class="text-amber-400">2</span>);
+<span class="text-cyan-400">const</span> pipelineResponse = <span class="text-cyan-400">await</span> LLM.generatePrompt(query, context);</pre>
+                    </div>
+                `;
+            }, 1500);
+        }
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+
+            if (Math.abs(dragonCurrentOpacity - dragonTargetOpacity) > 0.01) {
+                dragonCurrentOpacity += (dragonTargetOpacity - dragonCurrentOpacity) * 0.08;
+                dragonMaterials.forEach(m => m.opacity = dragonCurrentOpacity);
+            }
+
+            if (dragonCurrentOpacity > 0.01) {
+                dragonGroup.position.y = 0.3 + Math.sin(elapsedTime * 1.5) * 0.15;
+                dragonGroup.rotation.y = Math.cos(elapsedTime * 0.6) * 0.08;
+
+                if (dragonGroup.children[7] && dragonGroup.children[8]) {
+                    dragonGroup.children[7].rotation.z = -Math.PI / 3 + Math.sin(elapsedTime * 3) * 0.12;
+                    dragonGroup.children[8].rotation.z = Math.PI / 3 - Math.sin(elapsedTime * 3) * 0.12;
+                }
+
+                dragonGroup.children[0].rotation.z += (0 - dragonGroup.children[0].rotation.z) * 0.05;
+                dragonGroup.children[0].rotation.x += (Math.PI / 1.8 - dragonGroup.children[0].rotation.x) * 0.05;
+            }
+
+            const orbitSpeed = elapsedTime * 2.2 * orbitSpeedMultiplier;
+            const radiusX = 0.9;
+            const radiusZ = 0.7;
+            starMesh.position.x = dragonGroup.position.x + Math.cos(orbitSpeed) * radiusX;
+            starMesh.position.z = dragonGroup.position.z + Math.sin(orbitSpeed) * radiusZ;
+            starMesh.position.y = dragonGroup.position.y + 0.65 + Math.sin(orbitSpeed * 1.5) * 0.15;
+            starMesh.rotation.y += 0.02;
+
+            const posAttr = particleSystem.geometry.attributes.position;
+            for (let i = 0; i < posAttr.count; i++) {
+                let y = posAttr.getY(i);
+                y -= 0.003;
+                if (y < -4) y = 4;
+                posAttr.setY(i, y);
+            }
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+            particleSystem.rotation.y = elapsedTime * 0.015;
+
+            camera.position.x += (mouseX * 0.6 - camera.position.x) * 0.05;
+            camera.position.y += (mouseY * 0.6 - camera.position.y) * 0.05;
+            camera.lookAt(0, 0, 0);
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+
+</html>

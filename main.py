@@ -12,11 +12,19 @@ from pipeline import run_pipeline # change to your actual function name
 app = FastAPI()
 
 # Serve the HTML/CSS/JS
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+app.mount("/static", StaticFiles(directory="Agent_frontend"), name="static")
 
 @app.get("/")
 async def serve_ui():
-    return FileResponse("frontend/index.html")
+    return FileResponse("Agent_frontend/home.html")
+
+@app.get("/{page}.html")
+async def serve_pages(page: str):
+    file_path = f"Agent_frontend/{page}.html"
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+        
+    return FileResponse("Agent_frontend/home.html")
 
 class ResearchRequest(BaseModel):
     query: str
