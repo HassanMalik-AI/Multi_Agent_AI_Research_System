@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["fastapi", "run", "main.py", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "[IP_ADDRESS]", "--port", "8000"]
