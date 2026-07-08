@@ -1,4 +1,4 @@
-from agents import search_agent,reader_agent,writer_chain,checking_chain
+from core_agents.agents import search_agent,reader_agent,writer_chain,checking_chain
 import asyncio
 
 async def run_pipeline(topic:str):

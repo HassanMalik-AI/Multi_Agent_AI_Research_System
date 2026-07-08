@@ -6,8 +6,8 @@ from pydantic import BaseModel
 import os
 
 # import your existing logic
-from pipeline import run_pipeline # change to your actual function name
-# from agents import researcher, analyzer... if you call them directly
+from core_agents.pipeline import run_pipeline # change to your actual function name
+# from core_agents.agents import researcher, analyzer... if you call them directly
 
 app = FastAPI()
 

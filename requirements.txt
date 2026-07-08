@@ -3,6 +3,15 @@ langchain>=0.2.0
 langchain-core>=0.2.0
 langchain-community>=0.2.0
 langchain-openai>=0.1.0
+langgraph
+langchain-groq
+langchain-text-splitters
+langchain-huggingface
+
+# RAG & Vector Stores
+sentence-transformers
+faiss-cpu
+chromadb
 
 # OpenAI
 openai>=1.30.0
@@ -42,6 +51,6 @@ pydantic>=2.5.0
 # Optional (for advanced parsing / HTML cleanup)
 html5lib>=1.1
 
-
+# API
 fastapi
 uvicorn[standard]
