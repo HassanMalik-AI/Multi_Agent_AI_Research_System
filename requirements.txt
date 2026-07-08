@@ -1,12 +1,13 @@
-# Core LLM + LangChain ecosystem
-langchain>=0.2.0
-langchain-core>=0.2.0
-langchain-community>=0.2.0
-langchain-openai>=0.1.0
 langgraph
+langchain
 langchain-groq
+python-dotenv
+langchain-community
 langchain-text-splitters
 langchain-huggingface
+sentence-transformers
+faiss-cpu
+pypdf
 
 # RAG & Vector Stores
 sentence-transformers
