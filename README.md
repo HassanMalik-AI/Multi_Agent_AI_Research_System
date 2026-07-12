@@ -45,6 +45,43 @@ The system is built using a modern, robust AI and web development stack:
   <img src="images\multi agent.drawio.png" alt="Dashboard" width="700"/>
 </p>
 
+# RAG System Structural Diagram (Conditional RAG)
+
+```mermaid
+graph TD
+    %% Define styles
+    classDef inputStyle fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
+    classDef processStyle fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+    classDef decisionStyle fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px;
+    classDef dbStyle fill:#e8f5e9,stroke:#4caf50,stroke-width:2px;
+    classDef outputStyle fill:#ffebee,stroke:#f44336,stroke-width:2px;
+
+    %% Nodes
+    A([User Query]) ::: inputStyle
+    B{Query Router} ::: decisionStyle
+    C[Retrieve from Vector Store] ::: processStyle
+    D[(FAISS Vector Database)] ::: dbStyle
+    E[Web Search] ::: processStyle
+    F[Generate Response with LLM] ::: processStyle
+    G{Grade Relevance & Hallucinations} ::: decisionStyle
+    H[Rewrite Query] ::: processStyle
+    I([Final Answer]) ::: outputStyle
+
+    %% Connections
+    A --> B
+    B -- "Internal Knowledge" --> C
+    B -- "External/Current Events" --> E
+    C --> D
+    D --> C
+    C --> F
+    E --> F
+    F --> G
+    
+    G -- "Irrelevant or Hallucinated" --> H
+    H --> C
+    G -- "Relevant & Accurate" --> I
+```
+
 ## How to Run
 
 1. **Clone the repository.**
