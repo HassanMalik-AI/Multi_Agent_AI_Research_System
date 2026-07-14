@@ -336,25 +336,38 @@
             const nameLabel = document.getElementById('attached-file-name');
             const clearBtn = document.getElementById('clear-doc-btn');
             const inputField = document.getElementById('agent-input');
+            let attachedFileText = "";
+            let attachedFileName = "";
 
             dropzone.addEventListener('click', () => fileSelector.click());
             fileSelector.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) attachFile(e.target.files[0].name);
+                if (e.target.files.length > 0) attachFile(e.target.files[0]);
             });
 
             dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = "rgba(212, 160, 23, 0.7)"; });
             dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = "rgba(212, 160, 23, 0.2)"; });
             dropzone.addEventListener('drop', (e) => {
                 e.preventDefault();
-                if (e.dataTransfer.files.length > 0) attachFile(e.dataTransfer.files[0].name);
+                if (e.dataTransfer.files.length > 0) attachFile(e.dataTransfer.files[0]);
             });
 
-            function attachFile(name) {
-                dropzone.classList.add('hidden');
-                chip.classList.remove('hidden');
-                chip.classList.add('flex');
-                nameLabel.innerText = name;
-                dragonTargetOpacity = 1.0; // Instantly wake up asset model on successful load
+            function attachFile(file) {
+                const supported = file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.json');
+                if (!supported) {
+                    alert('Only .txt, .md, and .json files are supported for document QA.');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    attachedFileText = event.target.result || "";
+                    attachedFileName = file.name;
+                    dropzone.classList.add('hidden');
+                    chip.classList.remove('hidden');
+                    chip.classList.add('flex');
+                    nameLabel.innerText = attachedFileName;
+                    dragonTargetOpacity = 1.0;
+                };
+                reader.readAsText(file);
             }
 
             clearBtn.addEventListener('click', () => {
@@ -362,11 +375,13 @@
                 chip.classList.remove('flex');
                 dropzone.classList.remove('hidden');
                 fileSelector.value = "";
+                attachedFileText = "";
+                attachedFileName = "";
                 if (inputField.value.trim().length === 0) dragonTargetOpacity = 0.0;
             });
 
             inputField.addEventListener('input', (e) => {
-                if (e.target.value.trim().length > 0 || !chip.classList.contains('hidden')) {
+                if (e.target.value.trim().length > 0 || attachedFileText) {
                     dragonTargetOpacity = 1.0;
                 } else {
                     dragonTargetOpacity = 0.0;
@@ -394,14 +409,25 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function triggerExecutionState() {
+        async function triggerExecutionState() {
             const inputField = document.getElementById('agent-input');
-            if (inputField.value.trim() === '') return;
+            const question = inputField.value.trim();
+            if (question === '') return;
+            if (!attachedFileText) {
+                const outContainer = document.getElementById('output-container');
+                const outContent = document.getElementById('output-content');
+                document.getElementById('main-layout').classList.remove('justify-center');
+                document.getElementById('main-layout').classList.add('justify-start', 'pt-8');
+                outContainer.style.maxHeight = "600px";
+                outContainer.style.opacity = "1";
+                outContainer.style.transform = "translateY(0)";
+                outContent.innerHTML = `<div class="p-6 text-slate-200 bg-slate-950/70 rounded-xl border border-amber-500/20">Please upload a supported document before asking a question.</div>`;
+                return;
+            }
 
             orbitSpeedMultiplier = 5.5;
             dragonGroup.children[0].rotation.z += 0.4;
             dragonGroup.children[0].rotation.x -= 0.2;
-
             setTimeout(() => { orbitSpeedMultiplier = 1.0; }, 2000);
 
             const outContainer = document.getElementById('output-container');
@@ -424,55 +450,34 @@
             outContainer.style.opacity = "1";
             outContainer.style.transform = "translateY(0)";
 
-            setTimeout(() => {
+            try {
+                const response = await fetch('/api/rag_qa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: question,
+                        document_text: attachedFileText,
+                        document_name: attachedFileName,
+                    }),
+                });
+                const data = await response.json();
+                const resultText = data.answer || JSON.stringify(data, null, 2);
+
                 outContent.innerHTML = `
                     <div class="prose prose-invert max-w-none space-y-6 animate-fade-in">
-                        <h2 class="text-xl md:text-2xl font-bold text-amber-400 border-b border-amber-500/20 pb-2">
-                            Contextual Retrieval Mapping Reference Analysis
-                        </h2>
-                        <p class="text-slate-300 leading-relaxed">
-                            Vector-embeddings matched localized target queries with an inner index confidence metrics threshold calculation of 0.948. Below is the isolated semantic excerpt compiled from active context memory files.
-                        </p>
-                        
-                        <h3 class="text-base md:text-lg font-semibold text-amber-300 mt-4">Isolated Text Matches</h3>
-                        <ul class="list-disc pl-5 space-y-2 text-slate-300">
-                            <li><strong>Chunk Mapping Node:</strong> Section 4.2 extracted semantic references pointing straight towards modular data parameters.</li>
-                            <li><strong>Cross Comparison:</strong> Correlated values validated structural calculations against verified records.</li>
-                        </ul>
-
-                        <h3 class="text-base md:text-lg font-semibold text-amber-300 mt-4">Vector Search Context Weights</h3>
-                        <div class="overflow-x-auto my-4">
-                            <table class="w-full text-left text-xs md:text-sm border-collapse">
-                                <thead>
-                                    <tr class="border-b border-amber-500/20 text-amber-400 bg-slate-900/40">
-                                        <th class="py-2 px-3">Document Section</th>
-                                        <th class="py-2 px-3">Cosine Proximity</th>
-                                        <th class="py-2 px-3">Status Matrix</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-800/40 text-slate-300">
-                                    <tr>
-                                        <td class="py-2 px-3 font-mono text-amber-100">Paragraph_Chunk_102</td>
-                                        <td class="py-2 px-3">0.9642</td>
-                                        <td class="py-2 px-3 text-emerald-400">Injected</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="py-2 px-3 font-mono text-amber-100">Appendix_B_Table</td>
-                                        <td class="py-2 px-3">0.8921</td>
-                                        <td class="py-2 px-3 text-emerald-400">Injected</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="flex justify-between items-center border-b border-amber-500/20 pb-2">
+                            <h2 class="text-xl md:text-2xl font-bold text-amber-400 m-0">
+                                Document QA Response
+                            </h2>
                         </div>
-
-                        <h3 class="text-base md:text-lg font-semibold text-amber-300 mt-4">Calculated Context Prompt Generation</h3>
-                        <pre class="bg-slate-950/80 p-4 rounded-xl border border-amber-500/10 text-xs md:text-sm overflow-x-auto font-mono text-amber-200/90"><span class="text-cyan-400">import</span> { VectorStore } <span class="text-cyan-400">from</span> <span class="text-emerald-400">'rag-core-engine'</span>;
-
-<span class="text-cyan-400">const</span> context = <span class="text-cyan-400">await</span> VectorStore.similaritySearch(query, <span class="text-amber-400">2</span>);
-<span class="text-cyan-400">const</span> pipelineResponse = <span class="text-cyan-400">await</span> LLM.generatePrompt(query, context);</pre>
+                        <div class="text-slate-300 leading-relaxed">
+                            ${marked.parse(resultText)}
+                        </div>
                     </div>
                 `;
-            }, 1500);
+            } catch (error) {
+                outContent.innerHTML = `<div class="text-red-400 p-4">Error connecting to the backend. Make sure the backend is running and the API is reachable.</div>`;
+            }
         }
 
         const clock = new THREE.Clock();

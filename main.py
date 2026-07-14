@@ -5,9 +5,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import os
 
-# import your existing logic
-from core_agents.pipeline import run_pipeline # change to your actual function name
-# from core_agents.agents import researcher, analyzer... if you call them directly
+from core_agents.pipeline import run_pipeline
+from core_agents.rag_agent import run_rag_qa
 
 app = FastAPI()
 
