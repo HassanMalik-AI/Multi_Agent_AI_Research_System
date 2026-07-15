@@ -99,5 +99,3 @@ graph TD
    ```bash
    fastapi dev main.py
    ```
-5. **Access the application:**
-   Open your browser and navigate to `http://localhost:8000/`.
