@@ -17,7 +17,7 @@ def search_agent():
     agent = create_agent(
         model=llm,
         tools=[web_search],
-        system_prompt="You are an expert research search assistant. Use the web_search tool to find detailed information on the given topic. Return a summary of search results."
+        system_prompt="You are an expert research search assistant. Use the web_search tool to find detailed information on the given topic. Return a summary of search results and explicitly list the most relevant URLs you found."
     )
     return (
         RunnableLambda(lambda x: {"messages": [("user", f"Search for detailed information on this topic: {x['topic']}")]})
@@ -30,10 +30,10 @@ def reader_agent():
     agent = create_agent(
         model=llm,
         tools=[get_url_content],
-        system_prompt="You are a research reader agent. Based on the topic, determine the best Wikipedia URLs or other URLs, fetch their content using get_url_content tool, and read them. Then, extract and synthesize the key findings."
+        system_prompt="You are a research reader agent. Based on the topic and the provided search results, determine the best URLs, fetch their content using the get_url_content tool, and read them. Then, extract and synthesize the key findings."
     )
     return (
-        RunnableLambda(lambda x: {"messages": [("user", f"Read and extract information on this topic: {x['topic']}")]})
+        RunnableLambda(lambda x: {"messages": [("user", f"Read and extract information on this topic: {x['topic']}\n\nSearch Results:\n{x.get('search_result', '')}")]})
         | agent
         | RunnableLambda(lambda x: x["messages"][-1].content)
     )

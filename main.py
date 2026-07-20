@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from typing import Optional
 import os
 
 from core_agents.pipeline import run_pipeline
@@ -28,9 +29,21 @@ async def serve_pages(page: str):
 class ResearchRequest(BaseModel):
     query: str
 
+
+class RagQARequest(BaseModel):
+    question: str
+    document_text: str
+    document_name: Optional[str] = None
+
 @app.post("/api/research")
 async def research(req: ResearchRequest):
     # call your multi-agent pipeline
     result = await run_pipeline(req.query) # if it's sync, remove await
     # result should be dict like {"summary": "...", "agents": {...}}
+    return result
+
+
+@app.post("/api/rag_qa")
+async def rag_qa(req: RagQARequest):
+    result = run_rag_qa(req.question, req.document_text, req.document_name)
     return result

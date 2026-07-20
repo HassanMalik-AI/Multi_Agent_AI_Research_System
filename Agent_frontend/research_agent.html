@@ -381,8 +381,11 @@
                     body: JSON.stringify({ query: query })
                 });
                 
-                const data = await response.json();
-                const resultText = typeof data === 'string' ? data : (data.result || data.content || JSON.stringify(data, null, 2));
+                let resultText = typeof data === 'string' ? data : (data.summary || data.result || data.content || JSON.stringify(data, null, 2));
+                
+                if (data.agents && data.agents.checker) {
+                    resultText += "\n\n---\n\n### Critic Evaluation\n\n" + data.agents.checker;
+                }
 
                 window.currentReportText = resultText; // Store for downloading
 
